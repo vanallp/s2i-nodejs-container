@@ -1,50 +1,58 @@
-var util = require('util');
-var http = require('http');
-var url = require('url');
-var qs = require('querystring');
-var os = require('os')
-var port = process.env.PORT || process.env.port || process.env.OPENSHIFT_NODEJS_PORT || 8080;
-var ip = process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0';
-var nodeEnv = process.env.NODE_ENV || 'unknown';
-var server = http.createServer(function (req, res) {
-	var url_parts = url.parse(req.url, true);
+'use strict';
 
-	var body = '';
-	req.on('data', function (data) {
-		body += data;
-	});
-	req.on('end', function () {
-		var formattedBody = qs.parse(body);
+var webpack = require('webpack');
+var WebpackDevServer = require('webpack-dev-server');
+var config = require('./webpack.config');
+var open = require('open');
+var IP = '127.0.0.1';
+var argv = require('minimist')(process.argv.slice(2));
 
-		res.writeHead(200, {'Content-Type': 'text/plain'});
+/**
+ * Start the server with webpack config
+ *
+ * @param {number} port - TCP port
+ * @param {function} cb - Error first success callback
+*/
+function startServer(port, cb) {
+  config.entry.app.unshift('webpack-dev-server/client?http://' + IP + ':' + port + '/');
 
-		res.write('This is a node.js echo service\n');
-		res.write('Host: ' + req.headers.host + '\n');
-		res.write('\n');
-		res.write('node.js Production Mode: ' + (nodeEnv == 'production' ? 'yes' : 'no') + '\n');
-		res.write('\n');
-		res.write('HTTP/' + req.httpVersion +'\n');
-		res.write('Request headers:\n');
-		res.write(util.inspect(req.headers, null) + '\n');
-		res.write('Request query:\n');
-		res.write(util.inspect(url_parts.query, null) + '\n');
-		res.write('Request body:\n');
-		res.write(util.inspect(formattedBody, null) + '\n');
-		res.write('\n');
-		res.write('Host: ' + os.hostname() + '\n');
-		res.write('OS Type: ' + os.type() + '\n');
-		res.write('OS Platform: ' + os.platform() + '\n');
-		res.write('OS Arch: ' + os.arch() + '\n');
-		res.write('OS Release: ' + os.release() + '\n');
-		res.write('OS Uptime: ' + os.uptime() + '\n');
-		res.write('OS Free memory: ' + os.freemem() / 1024 / 1024 + 'mb\n');
-		res.write('OS Total memory: ' + os.totalmem() / 1024 / 1024 + 'mb\n');
-		res.write('OS CPU count: ' + os.cpus().length + '\n');
-		res.write('OS CPU model: ' + os.cpus()[0].model + '\n');
-		res.write('OS CPU speed: ' + os.cpus()[0].speed + 'mhz\n');
-		res.end('\n');
+  var compiler = webpack(config);
 
-	});
-});
-server.listen(port);
-console.log('Server running on ' + ip + ':' + port);
+  var server = new WebpackDevServer(compiler, {
+    progress: true,
+    stats: 'errors-only',
+    showModules: false,
+    publicPath: '/' + config.output.publicPath,
+    headers: {
+      'Set-Cookie':
+        'swagger-editor-development-mode:' +
+        (argv.production ? 'false' : 'true') + ';'
+    }
+  });
+
+  server.listen(port, IP, cb);
+}
+
+// if this file was triggered directly, launch the server
+if (require.main === module) {
+  var PORT = process.env.PORT || 8080;
+
+  startServer(PORT, function(err) {
+    if (err) {
+      return console.log(err);
+    }
+
+    var url = 'http://' + IP + ':' + PORT;
+
+    console.log('Development server started at', url);
+
+    // to avoid opening the browser set DO_NOT_OPEN environment
+    // variable to true
+    if (!process.env.DO_NOT_OPEN) {
+      console.log('Opening the browser');
+      open(url);
+    }
+  });
+}
+
+module.exports = startServer;
