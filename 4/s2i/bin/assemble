@@ -34,12 +34,12 @@ fi
 
 if [ ! -z $HTTPS_PROXY ]; then
 	echo "---> Setting npm https proxy to $HTTPS_PROXY"
-	npm config set https-proxy $HTTPS_PROXY
+	npm config set https-proxy $HTTP_PROXY
 fi
 
 if [ ! -z $https_proxy ]; then
 	echo "---> Setting npm https proxy to $https_proxy"
-	npm config set https-proxy $https_proxy
+	npm config set https-proxy $http_proxy
 fi
 
 # Change the npm registry mirror if provided
